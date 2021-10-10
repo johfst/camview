@@ -29,7 +29,9 @@ class CamThread(QThread):
         QThread.__init__(self, parent)
         self.running = False
         self.RETRY_INTERVAL = 1
+        self.RECONNECT_INTERVAL = 5
         self.MAX_RETRIES = 3
+        self.retries = self.MAX_RETRIES
 
     def stop(self):
         self.running = False
@@ -38,8 +40,7 @@ class CamThread(QThread):
     def run(self):
         self.running = True
         buffer = bytearray()
-        retries = self.MAX_RETRIES
-        while retries > 0 and self.running:
+        while self.running:
             try:
                 r = requests.get(
                         url,
@@ -50,6 +51,7 @@ class CamThread(QThread):
                 for chunk in r.iter_content(chunk_size=1024):
                     if not self.running: 
                         break
+                    self.retries = self.MAX_RETRIES
 
                     buffer.extend(chunk)
                     img_start = buffer.find(b'\xff\xd8')
@@ -68,14 +70,20 @@ class CamThread(QThread):
 
             except requests.exceptions.ConnectionError:
                 print("connection error")
-                retries -= 1
-                sleep(self.RETRY_INTERVAL)
+                self.error()
             except socket.timeout:
                 print("socket timeout")
-                retries -= 1
-                sleep(self.RETRY_INTERVAL)
+                self.error()
 
         self.quit()
+
+    def error(self):
+        if self.retries == 0:
+            print("disconnected, attempting to reconnect...")
+            sleep(self.RECONNECT_INTERVAL)
+        else:
+            self.retries -= 1
+            sleep(self.RETRY_INTERVAL)
 
 
 class CamFrame(QWidget):
