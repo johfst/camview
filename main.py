@@ -28,7 +28,6 @@ class CamThread(QThread):
     def __init__(self, parent):
         QThread.__init__(self, parent)
         self.running = False
-        self.RETRY_INTERVAL = 1
         self.RECONNECT_INTERVAL = 5
         self.MAX_RETRIES = 3
         self.retries = self.MAX_RETRIES
@@ -83,7 +82,6 @@ class CamThread(QThread):
             sleep(self.RECONNECT_INTERVAL)
         else:
             self.retries -= 1
-            sleep(self.RETRY_INTERVAL)
 
 
 class CamFrame(QWidget):
