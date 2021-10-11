@@ -10,31 +10,28 @@ from PyQt5.QtWidgets import QWidget, QLabel, QApplication, QHBoxLayout
 from PyQt5.QtCore import QThread, Qt, pyqtSignal, pyqtSlot
 from PyQt5.QtGui import QImage, QPixmap
 
-settings = None
-with open("settings.yaml", "r") as f:
-    settings = yaml.safe_load(f)
 page = "/nphMotionJpeg?Resolution=640x480&Quality=Standard"
 headers = {
         "Accept" : "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
         "Accept-Language" : "en-US,en;q=0.5",
         "Accept-Encoding" : "gzip, deflate",
         "DNT" : "1",
-        "Authorization" : f"Basic {settings['authcode']}",
         "Upgrade-Insecure-Requests" : "1",
-        "Referer": "http://192.168.1.34:50003/ViewerFrame?page=Single&Language=0",
         "Connection": "keep-alive",
         }
 
 class CamThread(QThread):
     changePixmap = pyqtSignal(QImage)
 
-    def __init__(self, parent, ip, port):
+    def __init__(self, parent, ip, port, authcode):
         QThread.__init__(self, parent)
         self.running = False
         self.RECONNECT_INTERVAL = 5
         self.MAX_RETRIES = 3
         self.retries = self.MAX_RETRIES
         self.url = f"http://{ip}:{port}{page}"
+        self.headers = headers.copy()
+        self.headers["Authorization"] = f"Basic {authcode}"
 
     def stop(self):
         self.running = False
@@ -47,9 +44,9 @@ class CamThread(QThread):
             try:
                 r = requests.get(
                         self.url,
-                        headers=headers,
+                        headers=self.headers,
                         stream=True,
-                        timeout=1
+                        timeout=(3, 8)
                         )
                 for chunk in r.iter_content(chunk_size=1024):
                     if not self.running: 
@@ -127,8 +124,10 @@ class Window(QWidget):
             self.layout.addWidget(self.camframes[-1])
         self.setLayout(self.layout)
 
-        for camdict in settings["cams"]:
-            self.camthreads.append(CamThread(self, camdict["ip"], camdict["port"]))
+        for camdict in self.settings["cams"]:
+            self.camthreads.append(
+                    CamThread(self, camdict["ip"], camdict["port"], camdict["authcode"])
+            )
         for frame, thread in zip(self.camframes, self.camthreads):
             thread.changePixmap.connect(frame.setImage)
             thread.start()
