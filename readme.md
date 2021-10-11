@@ -3,7 +3,7 @@ viewer for some panasonic network cameras in the BL-C line. currently works for 
 
 requires requests, pyyaml, PyQt5, numpy, & opencv2. i'm hoping to drop the latter two in the long run but we'll see.
 
-needs a `settings.yaml` file containing an , and a list of `cams`, each with `ip`, `port`, and `authcode` fields, the latter containing a base6-encoded `user:pass` 
+needs a `settings.yaml` file containing an , and a list of `cams`, each with `ip`, `port`, and `authcode` fields, the latter containing a base64-encoded `user:pass` 
 
     cams:
         - ip: <ip1>
