@@ -1,5 +1,5 @@
 # camviewer
-viewer for some panasonic network cameras in the BL-C line. currently works for single cameras. the aim is to give it multi-camera support, movement commands, and vim keybindings.
+viewer for some panasonic network cameras in the BL-C line. currently works for viewing multiple cameras (though still needs layout manipulation). also right now it doesn't work on my older cameras for some reason. the aim is to give it movement commands and vim keybindings.
 
 requires requests, pyyaml, PyQt5, numpy, & opencv2. i'm hoping to drop the latter two in the long run but we'll see.
 

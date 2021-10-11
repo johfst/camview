@@ -3,16 +3,17 @@ import numpy as np
 import cv2
 import sys
 import yaml
+import socket
 from time import sleep
 
-from PyQt5.QtWidgets import QWidget, QLabel, QApplication
+from PyQt5.QtWidgets import QWidget, QLabel, QApplication, QHBoxLayout
 from PyQt5.QtCore import QThread, Qt, pyqtSignal, pyqtSlot
 from PyQt5.QtGui import QImage, QPixmap
 
+settings = None
 with open("settings.yaml", "r") as f:
     settings = yaml.safe_load(f)
 page = "/nphMotionJpeg?Resolution=640x480&Quality=Standard"
-url = f"http://{settings['ip']}:50000{page}"
 headers = {
         "Accept" : "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
         "Accept-Language" : "en-US,en;q=0.5",
@@ -20,17 +21,20 @@ headers = {
         "DNT" : "1",
         "Authorization" : f"Basic {settings['authcode']}",
         "Upgrade-Insecure-Requests" : "1",
+        "Referer": "http://192.168.1.34:50003/ViewerFrame?page=Single&Language=0",
+        "Connection": "keep-alive",
         }
 
 class CamThread(QThread):
     changePixmap = pyqtSignal(QImage)
 
-    def __init__(self, parent):
+    def __init__(self, parent, ip, port):
         QThread.__init__(self, parent)
         self.running = False
         self.RECONNECT_INTERVAL = 5
         self.MAX_RETRIES = 3
         self.retries = self.MAX_RETRIES
+        self.url = f"http://{ip}:{port}{page}"
 
     def stop(self):
         self.running = False
@@ -42,7 +46,7 @@ class CamThread(QThread):
         while self.running:
             try:
                 r = requests.get(
-                        url,
+                        self.url,
                         headers=headers,
                         stream=True,
                         timeout=1
@@ -73,6 +77,9 @@ class CamThread(QThread):
             except socket.timeout:
                 print("socket timeout")
                 self.error()
+            except requests.exceptions.ReadTimeout:
+                print("read timeout")
+                self.error()
 
         self.quit()
 
@@ -90,26 +97,50 @@ class CamFrame(QWidget):
         self.initUI()
 
     def initUI(self):
-        self.setWindowTitle("cam")
-        self.setGeometry(0, 0, 640, 480)
         
         self.label = QLabel(self)
         self.label.resize(640, 480)
-        self.th = CamThread(self)
-        self.th.changePixmap.connect(self.setImage)
-        self.th.start()
-        self.show()
 
     @pyqtSlot(QImage)
     def setImage(self, image):
         self.label.setPixmap(QPixmap.fromImage(image))
 
+
+class Window(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.camframes = []
+        self.camthreads = []
+
+        with open("settings.yaml", "r") as f:
+            self.settings = yaml.safe_load(f)
+
+        self.initUI()
+
+    def initUI(self):
+        self.setWindowTitle("cam")
+        self.setGeometry(0, 0, len(self.settings["cams"])*640, 480)
+        self.layout = QHBoxLayout()
+
+        for _ in range(len(self.settings["cams"])):
+            self.camframes.append(CamFrame())
+            self.layout.addWidget(self.camframes[-1])
+        self.setLayout(self.layout)
+
+        for camdict in settings["cams"]:
+            self.camthreads.append(CamThread(self, camdict["ip"], camdict["port"]))
+        for frame, thread in zip(self.camframes, self.camthreads):
+            thread.changePixmap.connect(frame.setImage)
+            thread.start()
+
+        self.show()
+
     def keyPressEvent(self, event):
         if event.key() == Qt.Key_Q: 
-            self.th.stop()
+            for thread in self.camthreads: thread.stop()
             self.close()
 
 app = QApplication(sys.argv)
-widget = CamFrame()
+widget = Window()
 widget.show()
 sys.exit(app.exec_())
