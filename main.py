@@ -119,19 +119,18 @@ class Window(QWidget):
         self.setGeometry(0, 0, len(self.settings["cams"])*640, 480)
         self.layout = QHBoxLayout()
 
-        for _ in range(len(self.settings["cams"])):
-            self.camframes.append(CamFrame())
-            self.layout.addWidget(self.camframes[-1])
-        self.setLayout(self.layout)
 
         for camdict in self.settings["cams"]:
-            self.camthreads.append(
-                    CamThread(self, camdict["ip"], camdict["port"], camdict["authcode"])
+            frame = CamFrame()
+            self.layout.addWidget(frame)
+            thread = CamThread(
+                    self, camdict["ip"], camdict["port"], camdict["authcode"]
             )
-        for frame, thread in zip(self.camframes, self.camthreads):
             thread.changePixmap.connect(frame.setImage)
             thread.start()
+            self.camthreads.append(thread)
 
+        self.setLayout(self.layout)
         self.show()
 
     def keyPressEvent(self, event):
