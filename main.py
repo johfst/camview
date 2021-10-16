@@ -119,7 +119,6 @@ class Window(QWidget):
         self.setGeometry(0, 0, len(self.settings["cams"])*640, 480)
         self.layout = QHBoxLayout()
 
-
         for camdict in self.settings["cams"]:
             frame = CamFrame()
             self.layout.addWidget(frame)
