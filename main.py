@@ -6,7 +6,7 @@ import yaml
 import socket
 from time import sleep
 
-from PyQt5.QtWidgets import QWidget, QLabel, QApplication, QHBoxLayout
+from PyQt5.QtWidgets import QWidget, QLabel, QApplication, QGridLayout
 from PyQt5.QtCore import QThread, Qt, pyqtSignal, pyqtSlot
 from PyQt5.QtGui import QImage, QPixmap
 
@@ -112,16 +112,24 @@ class Window(QWidget):
         with open("settings.yaml", "r") as f:
             self.settings = yaml.safe_load(f)
 
+        if (self.settings["rows"]*self.settings["cols"] 
+                < len(self.settings["cams"])):
+                print("too many cameras for layout, quitting")
+                sys.exit(1)
+
         self.initUI()
 
     def initUI(self):
         self.setWindowTitle("cam")
-        self.setGeometry(0, 0, len(self.settings["cams"])*640, 480)
-        self.layout = QHBoxLayout()
+        rows, cols = self.settings["rows"], self.settings["cols"]
+        self.setGeometry(0, 0, cols*640, rows*480)
+        grid = QGridLayout()
 
-        for camdict in self.settings["cams"]:
+        positions = [(i, j) for i in range(rows) for j in range(cols)]
+        camsnum = len(self.settings["cams"])
+        for camdict, pos in zip(self.settings["cams"], positions[:camsnum]):
             frame = CamFrame()
-            self.layout.addWidget(frame)
+            grid.addWidget(frame, *pos)
             thread = CamThread(
                     self, camdict["ip"], camdict["port"], camdict["authcode"]
             )
@@ -129,7 +137,7 @@ class Window(QWidget):
             thread.start()
             self.camthreads.append(thread)
 
-        self.setLayout(self.layout)
+        self.setLayout(grid)
         self.show()
 
     def keyPressEvent(self, event):
